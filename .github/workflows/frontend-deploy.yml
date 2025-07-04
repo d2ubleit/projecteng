@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
@@ -32,9 +32,9 @@ jobs:
       - name: Run tests
         run: npm test
 
-      - name: Upload test results
+      - name: Upload test results (опционально)
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: frontend-test-results
           path: frontend/test-results/
