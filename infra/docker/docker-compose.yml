@@ -9,6 +9,8 @@ services:
   frontend:
     build:
       context: ../..
-      dockerfile: infra/docker/Dockerfile.frontend
+      dockerfile: infra/docker/frontend.dockerfile
     ports:
       - "3000:3000"
+    depends_on:
+      - backend
