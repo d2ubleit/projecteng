@@ -2,11 +2,11 @@ name: Frontend Tests
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [main]
     paths:
       - 'frontend/**'
   pull_request:
-    branches: [ "main" ]
+    branches: [main]
     paths:
       - 'frontend/**'
 
@@ -19,22 +19,16 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
+      
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
 
       - name: Install dependencies
         run: npm install
 
       - name: Run tests
         run: npm test
-
-      - name: Upload test results (опционально)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-test-results
-          path: frontend/test-results/
