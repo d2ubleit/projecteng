@@ -21,7 +21,7 @@ redis_client = redis.Redis.from_url("redis://redis:6379/0")
 
 #jwt token settings
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-ALGORITHM = "HS256"
+ALGORITHM = "HS256"  #шифрование 
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 
 
 
@@ -29,21 +29,21 @@ router = APIRouter()
 
 #support functions
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    return pwd_context.hash(password)  #хэширует пароль пользователя перед сохранением в базу данных
 
 
 def verify_password(plain_password: str,hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    return pwd_context.verify(plain_password, hashed_password)  # проверяет соответствует ли введённый пароль хэшу в базе (используется при входе)
 
 
-def get_user_by_identifier(db:Session, identifier: str) -> Optional[User]:
+def get_user_by_identifier(db:Session, identifier: str) -> Optional[User]: #получает пользователя из базы по имени пользователя или email — используется при логине и регистрации
     return db.query(User).filter(
-        (User.username == identifier) | (User.email == identifier)
+        (User.username == identifier) | (User.email == identifier)  
     ).first()
 
 
-def create_user(db:Session, user:UserCreate) -> User:
-    hashed_password = get_password_hash(user.password)
+def create_user(db:Session, user:UserCreate) -> User:  #создаёт нового пользователя в базе данных (может использовать Email/Username для регистраци)
+    hashed_password = get_password_hash(user.password)  
     db_user = User(
         username = user.username,
         email = user.email,
@@ -55,19 +55,19 @@ def create_user(db:Session, user:UserCreate) -> User:
     return db_user
 
 
-def authenticate_user(db: Session, identifier: str, password: str) -> Optional[User]:
+def authenticate_user(db: Session, identifier: str, password: str) -> Optional[User]: #проверяет логин и пароль пользователя, возвращает объект пользователя при успешной аутентификации
     user = get_user_by_identifier(db,identifier)
     if not user or not verify_password(password, user.hashed_password):
         return None
     return user
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str: #cоздаёт JWT токен для авторизации включая время истечения
     to_encode = data.copy()
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-def verify_token(token:str) -> str:
+def verify_token(token:str) -> str: #проверяет действительность токена 
     if redis_client.sismember("token_blacklist", token):
         logger.info(f"Token {token} is blacklisted")
         raise HTTPException(
@@ -94,7 +94,7 @@ def verify_token(token:str) -> str:
     
 
 #API endpoints
-@router.post("/register",response_model=UserResponse)
+@router.post("/register",response_model=UserResponse) #регистрация пользователя (username/email + password)
 def register_user(user:UserCreate,db: Session = Depends(get_db)):
     identifier = user.username or user.email
     db_user = get_user_by_identifier(db, identifier)
@@ -110,7 +110,7 @@ def register_user(user:UserCreate,db: Session = Depends(get_db)):
         email=created_user.email
     )
 
-@router.post("/token", response_model=Token)
+@router.post("/token", response_model=Token) #логин пользователя (username/email + password) 
 def login_for_access(form_data: UserLogin, db: Session = Depends(get_db)):
     identifier = form_data.username or form_data.email
     user = authenticate_user(db, identifier, form_data.password)
@@ -127,12 +127,12 @@ def login_for_access(form_data: UserLogin, db: Session = Depends(get_db)):
         "user_id": str(user.id)
     }
 
-@router.get("/verify-token/{token}")
+@router.get("/verify-token/{token}") #проверка токена пользователя,можно использовать на фронте при каждом запуске или обновлении страницы
 async def verify_user_token(token:str):
     user_id = verify_token(token)
     return {"user_id":user_id}
 
-@router.post("/logout")
+@router.post("/logout") #выход пользователя из системы, отзыва токена
 def logout(token: str):
     redis_client.sadd("token_blacklist", token)
     logger.info(f"Token {token} успешно отозван")
