@@ -14,3 +14,21 @@ jobs:
           python-version: '3.10'
       - run: pip install -r backend/requirements.txt
       - run: pytest backend/tests/
+
+  create-pull-request:
+  needs: test
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: $
+{{ secrets.GUTHUB_TOKEN }}
+        commit-message: "Auto-commit"
+        title: "Автоматический пулл-реквест в мейн ветку"
+        body: "Пулл реквест был автоматически создан для изменений запушенных в мейн"
+        branch: "auto-pr-from-main"
+        base: "main"
+        delete-branch: false
+        draft: false
