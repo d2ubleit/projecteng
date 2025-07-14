@@ -10,8 +10,8 @@ from jose import JWTError, jwt
 from typing import Optional
 from backend.database.config import SECRET_KEY
 from datetime import datetime, timedelta
-from .schemas import UserCreate, UserResponse, Token, UserLogin
-
+from .auth_schemas import UserCreate, UserResponse, Token, UserLogin
+from fastapi.security import OAuth2PasswordBearer
 
 #logger
 logging.basicConfig(level=logging.INFO)
@@ -24,10 +24,40 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 ALGORITHM = "HS256"  #шифрование 
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")  
 
 router = APIRouter()
 
+
 #support functions
+
+
+def get_current_user(token: str = Depends(oauth2_scheme),db: Session= Depends(get_db)) -> User:
+    try:
+        payload = jwt.encode(token,SECRET_KEY,algorithm=ALGORITHM)
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(
+                status_code = 403,
+                detail = "Недействительный токен"
+            )
+        user = db.query(User).get(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=403,
+                detail="Пользователь не найден"
+            )
+        return user 
+    except JWTError:
+        raise HTTPException(
+            status_code=403,
+            detail="Неверный токен или истек срок его действия"
+        )
+
+        
+        
+
+
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)  #хэширует пароль пользователя перед сохранением в базу данных
 

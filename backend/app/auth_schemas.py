@@ -1,8 +1,11 @@
 from pydantic import BaseModel,EmailStr,model_validator,constr,Field
 from typing import Optional,Annotated
 import re
+from uuid import UUID
+
 
 USERNAME_REGEX = r"^[a-zA-Z0-9_.-]+$"
+
 
 class UserCreate(BaseModel):
     username: Optional[str] = None
@@ -30,14 +33,24 @@ class UserResponse(BaseModel):
         "from_attributes": True
     }
 
+
 class Token(BaseModel):
     access_token: str
     token_type: str
     user_id: str
+
 
 class UserLogin(BaseModel):
     username: Optional[str] = None
     email: Optional[EmailStr] = None
     password: str
 
+class UserSchema(BaseModel): #для получения инфы о пользователе к примеру /me
+    id:UUID
+    username: Optional[str]
+    email: Optional[str]
+    english_level: str
+
+    model_config = {"from_attributes": True}
+    
 
