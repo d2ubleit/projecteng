@@ -44,7 +44,7 @@ class LevelUpgradeRequest(Base):
 
     user = relationship("User")
     
-class TestSession(Base):
+class EnglishTestSession(Base):
     __tablename__ = "test_sessions"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -89,7 +89,7 @@ class UserAnswer(Base):
 
 
     question = relationship("Question")
-    session = relationship("TestSession")
+    session = relationship("EnglishTestSession")
 
 class DragItem(Base):
     __tablename__ = "drag_items"
