@@ -17,14 +17,15 @@ class EnglishLevel(enum.Enum):
     unknown = "unknown"
     
 
-class User(Base):   
+class User(Base):    #хочу добавить аватарки еще и email подтверждение 
     __tablename__ = "users"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    username = Column(String, unique=True, nullable=True, index=True)  
-    email = Column(String, unique=True, nullable=True, index=True)     
+    username = Column(String, unique=True, nullable=False, index=True)
+    email = Column(String, unique=False, nullable=True, index=True)     
     hashed_password = Column(String, nullable=False)
     english_level = Column(Enum(EnglishLevel),default=EnglishLevel.unknown)
+
 
 class QuestionCategory(enum.Enum):
     grammar = "grammar"

@@ -10,7 +10,7 @@ from jose import JWTError, jwt
 from typing import Optional
 from backend.database.config import SECRET_KEY
 from datetime import datetime, timedelta
-from .auth_schemas import UserCreate, UserResponse, Token, UserLogin
+from .auth_schemas import LogoutResponse, TokenVerificationResponse, UserCreate, UserResponse, Token, UserLogin
 from fastapi.security import OAuth2PasswordBearer
 
 #logger
@@ -34,7 +34,7 @@ router = APIRouter()
 
 def get_current_user(token: str = Depends(oauth2_scheme),db: Session= Depends(get_db)) -> User:
     try:
-        payload = jwt.encode(token,SECRET_KEY,algorithm=ALGORITHM)
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: str = payload.get("sub")
         if user_id is None:
             raise HTTPException(
@@ -66,18 +66,15 @@ def verify_password(plain_password: str,hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)  # проверяет соответствует ли введённый пароль хэшу в базе (используется при входе)
 
 
-def get_user_by_identifier(db:Session, identifier: str) -> Optional[User]: #получает пользователя из базы по имени пользователя или email — используется при логине и регистрации
-    return db.query(User).filter(
-        (User.username == identifier) | (User.email == identifier)  
-    ).first()
+
 
 
 def create_user(db:Session, user:UserCreate) -> User:  #создаёт нового пользователя в базе данных (может использовать Email/Username для регистраци)
     hashed_password = get_password_hash(user.password)  
     db_user = User(
-        username = user.username,
-        email = user.email,
-        hashed_password = hashed_password
+    username=user.username,
+    email=user.email or None,  # email необязательный
+    hashed_password=hashed_password
     )
     db.add(db_user)
     db.commit()
@@ -85,11 +82,13 @@ def create_user(db:Session, user:UserCreate) -> User:  #создаёт ново�
     return db_user
 
 
-def authenticate_user(db: Session, identifier: str, password: str) -> Optional[User]: #проверяет логин и пароль пользователя, возвращает объект пользователя при успешной аутентификации
-    user = get_user_by_identifier(db,identifier)
+#проверяет логин и пароль пользователя, возвращает объект пользователя при успешной аутентификации
+def authenticate_user(db: Session, username: str, password: str) -> Optional[User]:
+    user = db.query(User).filter_by(username=username).first()
     if not user or not verify_password(password, user.hashed_password):
         return None
     return user
+
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str: #cоздаёт JWT токен для авторизации включая время истечения
     to_encode = data.copy()
@@ -126,8 +125,7 @@ def verify_token(token:str) -> str: #проверяет действительн
 #API endpoints
 @router.post("/register",response_model=UserResponse) #регистрация пользователя (username/email + password)
 def register_user(user:UserCreate,db: Session = Depends(get_db)):
-    identifier = user.username or user.email
-    db_user = get_user_by_identifier(db, identifier)
+    db_user = db.query(User).filter_by(username=user.username).first()
     if db_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -142,12 +140,11 @@ def register_user(user:UserCreate,db: Session = Depends(get_db)):
 
 @router.post("/token", response_model=Token) #логин пользователя (username/email + password) 
 def login_for_access(form_data: UserLogin, db: Session = Depends(get_db)):
-    identifier = form_data.username or form_data.email
-    user = authenticate_user(db, identifier, form_data.password)
+    user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
             status_code = status.HTTP_401_UNAUTHORIZED,
-            detail = "Неверные username/enail/password",
+            detail = "Неверные username/password",
             headers= {"WWW-Authenticate": "Bearer" if form_data.username else "Basic"}
         )
     access_token = create_access_token(data={"sub": str(user.id)})
@@ -157,12 +154,16 @@ def login_for_access(form_data: UserLogin, db: Session = Depends(get_db)):
         "user_id": str(user.id)
     }
 
-@router.get("/verify-token/{token}") #проверка токена пользователя,можно использовать на фронте при каждом запуске или обновлении страницы
+
+@router.get("/verify-token/{token}", response_model=TokenVerificationResponse)
+ #проверка токена пользователя,можно использовать на фронте при каждом запуске или обновлении страницы
 async def verify_user_token(token:str):
     user_id = verify_token(token)
     return {"user_id":user_id}
 
-@router.post("/logout") #выход пользователя из системы, отзыва токена
+
+@router.post("/logout", response_model=LogoutResponse)
+ #выход пользователя из системы, отзыва токена
 def logout(token: str):
     redis_client.sadd("token_blacklist", token)
     logger.info(f"Token {token} успешно отозван")
