@@ -1,13 +1,15 @@
 from fastapi import FastAPI,status,Depends,HTTPException,BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from backend.app.auth import router as auth_router
-
+from backend.app.english_test import router as engtest_router
+from backend.app.profile import router as profile_router
 
 app = FastAPI()
 
 
 app.include_router(auth_router, prefix="/auth")
-
+app.include_router(engtest_router,prefix="/test")
+app.include_router(profile_router,prefix="/profile")
 
 
 origins = [

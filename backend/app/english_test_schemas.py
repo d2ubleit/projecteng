@@ -27,6 +27,10 @@ class AnswerPayload(BaseModel):
 class SubmitAnswersRequest(BaseModel):
     answers: List[AnswerPayload]
 
+class SubmitAnswersResponse(BaseModel):
+    message: str
+
+
 
 class QuestionResponse(BaseModel):
     id: UUID
@@ -65,3 +69,5 @@ class TestHistoryResponse(BaseModel):
 class SelectLevelResponse(BaseModel):
     message: str
     level: EnglishLevelEnum
+
+

@@ -9,21 +9,22 @@ from sqlalchemy.sql import func
 from uuid import UUID, uuid4
 from collections import defaultdict
 
-from .english_test_schemas import GenerateTestResponse,SubmitAnswersRequest,SelectLevelRequest,SubmitDiagnosticResponse,SelectLevelResponse,TestHistoryResponse
+from .english_test_schemas import GenerateTestResponse,SubmitAnswersRequest,SelectLevelRequest, SubmitAnswersResponse,SubmitDiagnosticResponse,SelectLevelResponse
 
 router = APIRouter()
 
 
 #ЭНДПОИНТ ВЫЗЫВАЕТСЯ КОГДА ЮЗЕР КЛИКАЕТ НА ЧТО ТО ПО ТИПУ "Я ЗНАЮ СВОЙ УРОВЕНЬ" И ТАМ ВЫБИРАЕТ УРОВЕНЬ АНГЛИЙСКОГО ЯЗЫКА
-@router.post("/select-level",response_model=SelectLevelResponse)
-def select_english_level(level:str, user:User =Depends(get_current_user), db: Session = Depends(get_db)):
-    user.english_level = level
+@router.post("/select-level", response_model=SelectLevelResponse)
+def select_english_level(payload: SelectLevelRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    user.english_level = payload.level
     db.commit()
-    return {"message" : "Уровень английского языка успешно обновлен", "level": level}
+    return {"message": "Уровень английского языка успешно обновлен", "level": user.english_level.value}
 
 
 
-def generate_diagnostic_test(user_id: UUID, db: Session) -> dict:
+
+def generate_diagnostic_test(user_id: UUID, db: Session) -> GenerateTestResponse:
 
     """
     Функция для генерации теста, если пользователь не знает свой уровень англ
@@ -49,14 +50,14 @@ def generate_diagnostic_test(user_id: UUID, db: Session) -> dict:
         .all()
     )
 
-    return {
-        "session_id": str(session.id),
-        "questions" : questions
-    }
+    return GenerateTestResponse(
+    session_id=str(session.id),
+    questions=questions
+)
 
 
 #Функциия сохранения ответов пользователя на вопросы теста
-def submit_answer(answers_data: list[dict], db: Session):
+def submit_answer(answers_data: list[dict], db: Session) -> SubmitAnswersResponse:
     """
     answers_data = [
         {
@@ -81,7 +82,7 @@ def submit_answer(answers_data: list[dict], db: Session):
         db.add(user_answer)
 
     db.commit()
-    return {"message": "Ответы успешно сохранены"}
+    return SubmitAnswersResponse(message="Ответы успешно сохранены")
 
 
 #!!!!!! ДОДЕЛАТЬ !!!!!!
@@ -111,7 +112,7 @@ def evaluate_english_level(user_answers: list[UserAnswer], db: Session) -> str:
     return diagnosed
 
 
-def submit_diagnostic(session_id: UUID, db:Session):
+def submit_diagnostic(session_id: UUID, db:Session) -> SubmitDiagnosticResponse:
     """
     Функция для завершения диагностического теста и определения уровня английского пользователя
     """
@@ -133,9 +134,7 @@ def submit_diagnostic(session_id: UUID, db:Session):
 
     db.commit()
 
-    return {
-        "diagnosed_level": diagnosed_level
-    }
+    return SubmitDiagnosticResponse(diagnosed_level=diagnosed_level)
 
 
 
@@ -197,58 +196,8 @@ def generate_level_progression_test(user_id: UUID,db:Session) -> dict:
 
 
 
-def _fetch_test_history(user: User, db: Session) -> dict:
-    """
-    Возвращает последние 10 завершённых тестов пользователя — с деталями по каждому вопросу
-    """
-    sessions = (
-        db.query(EnglishTestSession)
-        .filter_by(user_id = user.id, completed = True)
-        .order_by(EnglishTestSession.id.desc())
-        .limit(10)
-        .all()
-    )
 
-    history = []
-
-
-    for session in sessions:
-        answers = (
-            db.query(UserAnswer)
-            .filter_by(session_id = session.id)
-            .all()
-        )
-
-        session_data = {
-            "session_id": str(session.id),
-            "level": session.level.value,
-            "score": session.score,
-            "completed": session.completed,
-            "questions": []
-        }
-
-        for ans in answers:
-            question = db.query(Question).get(ans.question_id)
-            selected_option = db.query(Option).get(ans.selected_option_id)
-            correct_option = (
-                db.query(Option)
-                .filter_by(question_id=ans.question_id, is_correct=True)
-                .first()
-            )
-
-        session_data["questions"].append({
-                "question_text": question.prompt,
-                "user_answer": selected_option.text if selected_option else ans.answer_text,
-                "correct_answer": correct_option.text if correct_option else None,
-                "is_correct": ans.is_correct
-            })
-
-        history.append(session_data)
-
-    return {"history": history}
-
-
-@router.post("/generate-diagnostic-test")
+@router.post("/generate-diagnostic-test",response_model=GenerateTestResponse)
 def diagnostic_test(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Генерация диагностического теста
@@ -275,16 +224,11 @@ def level_progress_test(user: User = Depends(get_current_user), db: Session = De
     return result
 
 
-@router.post("/submit-answers")
-def submit_answers(answers: list[dict], db: Session = Depends(get_db)):
+@router.post("/submit-answers",response_model=SubmitAnswersResponse)
+def submit_answers(payload: SubmitAnswersRequest, db: Session = Depends(get_db)):
     """
     Принимает список ответов и сохраняет их
     """
-    return submit_answer(answers, db)
+    return submit_answer(payload.answers, db)
 
-@router.get("/test-history", response_model=TestHistoryResponse)
-def get_test_history(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return _fetch_test_history(user, db)
-
-#добавить функционал профиля !!!!
 
