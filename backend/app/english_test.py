@@ -9,7 +9,7 @@ from sqlalchemy.sql import func
 from uuid import UUID, uuid4
 from collections import defaultdict
 
-from .english_test_schemas import GenerateTestResponse,SubmitAnswersRequest,SelectLevelRequest, SubmitAnswersResponse,SubmitDiagnosticResponse,SelectLevelResponse
+from .english_test_schemas import GenerateTestResponse, QuestionResponse,SubmitAnswersRequest,SelectLevelRequest, SubmitAnswersResponse,SubmitDiagnosticResponse,SelectLevelResponse
 
 router = APIRouter()
 
@@ -22,39 +22,44 @@ def select_english_level(payload: SelectLevelRequest, user: User = Depends(get_c
     return {"message": "Уровень английского языка успешно обновлен", "level": user.english_level.value}
 
 
-
-
 def generate_diagnostic_test(user_id: UUID, db: Session) -> GenerateTestResponse:
-
     """
     Функция для генерации теста, если пользователь не знает свой уровень англ
 
     """
-
     session = EnglishTestSession(
         id=uuid4(),
         user_id=user_id,
-        level = "unknown",
-        score = 0,
-        completed = False
+        level="unknown",
+        score=0,
+        completed=False
     )
     db.add(session)
     db.commit()
     db.refresh(session)
 
-    questions = (
-        db.query(Question)
-        .filter(Question.level.in_(["A1", "A2", "B1", "B2", "C1", "C2"]))
-        .order_by(func.random())
-        .limit(15)
-        .all()
-    )
+    level_order = ["A1", "A2", "B1", "B2", "C1", "C2"]
+    questions = []
+    for lvl in level_order:
+        q = (
+            db.query(Question)
+            .filter_by(level=lvl)
+            .order_by(func.random())
+            .limit(5)  
+            .all()
+        )
+        questions.extend(q)
+
+    questions_serialized = []
+    for q in questions:
+        options = db.query(Option).filter_by(question_id=q.id).all()
+        setattr(q, "options", options)
+        questions_serialized.append(QuestionResponse.from_orm(q))
 
     return GenerateTestResponse(
-    session_id=str(session.id),
-    questions=questions
-)
-
+        session_id=str(session.id),
+        questions=questions_serialized
+    )
 
 #Функциия сохранения ответов пользователя на вопросы теста
 def submit_answer(answers_data: list[dict], db: Session) -> SubmitAnswersResponse:
@@ -85,31 +90,40 @@ def submit_answer(answers_data: list[dict], db: Session) -> SubmitAnswersRespons
     return SubmitAnswersResponse(message="Ответы успешно сохранены")
 
 
-#!!!!!! ДОДЕЛАТЬ !!!!!!
+
 def evaluate_english_level(user_answers: list[UserAnswer], db: Session) -> str:
     """
-    Функция - псевдо алгоритм для диагностити уровня английского пользователя на основе его ответов 
+    Примитивный алгоритм оценивания уровня английского 
     """
     level_stats = defaultdict(lambda: {"correct": 0, "total": 0})
     level_order = ["A1", "A2", "B1", "B2", "C1", "C2"]
+
     for answer in user_answers:
         question = db.query(Question).get(answer.question_id)
-        lvl = question.level.value 
+        if not question or question.level.value not in level_order:
+            continue
+        lvl = question.level.value
         level_stats[lvl]["total"] += 1
         if answer.is_correct:
             level_stats[lvl]["correct"] += 1
 
-    diagnosed = "A1" # Начальное значение
+    if all(stats["total"] == 0 for stats in level_stats.values()):
+        return "A1"
+
+    best_level = "A1"
     for lvl in level_order:
-        stat = level_stats[lvl]
-        if stat["total"] == 0:
+        stats = level_stats[lvl]
+        if stats["total"] == 0:
             continue
-        if stat["correct"] / stat["total"] >= 0.6:  # Если 60% или более правильных ответов
-            diagnosed = lvl
+
+        accuracy = stats["correct"] / stats["total"]
+        if accuracy >= 0.6:
+            best_level = lvl
         else:
             break
 
-    return diagnosed
+    return best_level
+
 
 
 def submit_diagnostic(session_id: UUID, db:Session) -> SubmitDiagnosticResponse:
@@ -152,13 +166,13 @@ def get_next_level(current: EnglishLevel) -> EnglishLevel:
         return EnglishLevel.A1
 
 
-def generate_level_progression_test(user_id: UUID,db:Session) -> dict:
+def generate_level_progression_test(user_id: UUID, db: Session) -> GenerateTestResponse:
     """
     Генерация теста на основе текущего уровня пользователя
     Включает вопросы его уровня и следующего
     """
     user = db.query(User).get(user_id)
-    if not user  or user.english_level == EnglishLevel.unknown:
+    if not user or user.english_level == EnglishLevel.unknown:
         raise HTTPException(
             status_code=400,
             detail="Пользователь не имеет определенного уровня английского языка"
@@ -166,33 +180,40 @@ def generate_level_progression_test(user_id: UUID,db:Session) -> dict:
 
     current_level = user.english_level
     next_level = get_next_level(current_level)
-    
     target_levels = [current_level.value, next_level.value]
-    
+
     session = EnglishTestSession(
-        id = uuid4(),
-        user_id = user_id,
-        level = current_level,
-        score = 0,
-        completed = False
+        id=uuid4(),
+        user_id=user_id,
+        level=current_level,
+        score=0,
+        completed=False
     )
     db.add(session)
-    db.commit() 
+    db.commit()
     db.refresh(session)
 
-    questions = (
-        db.query(Question)
-        .filter(Question.level.in_(target_levels))
-        .order_by(func.random)
-        .limit(15)
-        .all()
-    )
+    questions = []
+    for lvl in target_levels:
+        q = (
+            db.query(Question)
+            .filter_by(level=lvl)
+            .order_by(func.random())
+            .limit(8 if lvl == target_levels[0] else 7)  
+            .all()
+        )
+        questions.extend(q)
 
-    return {
-        "session_id": str(session.id),
-        "target_levels": target_levels,
-        "questions": questions,
-    }
+    questions_serialized = []
+    for q in questions:
+        options = db.query(Option).filter_by(question_id=q.id).all()
+        setattr(q, "options", options)
+        questions_serialized.append(QuestionResponse.model_validate(q))
+
+    return GenerateTestResponse(
+        session_id=str(session.id),
+        questions=questions_serialized
+    )
 
 
 
