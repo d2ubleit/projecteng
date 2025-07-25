@@ -30,14 +30,28 @@ class SubmitAnswersRequest(BaseModel):
 class SubmitAnswersResponse(BaseModel):
     message: str
 
+class OptionResponse(BaseModel):
+    id: UUID
+    text: str
+    is_correct: bool
+
+    model_config = {
+        "from_attributes": True
+    }
 
 
 class QuestionResponse(BaseModel):
     id: UUID
     prompt: str
-    level: EnglishLevelEnum
+    level: str
     category: str
     type: str
+    options: list[OptionResponse]  
+
+    model_config = {
+        "from_attributes": True
+    }
+
 
 
 class GenerateTestResponse(BaseModel):

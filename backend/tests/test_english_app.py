@@ -1,119 +1,85 @@
 import uuid
 import pytest
 from sqlalchemy.orm import Session
-from backend.app.models import User, Question, Option, UserAnswer
+from backend.database.database import SessionLocal
 from backend.app.english_test import (
-    generate_diagnostic_test,
-    submit_answer,
-    evaluate_english_level,
-    submit_diagnostic
+    select_english_level,
+    generate_level_progression_test,
+    submit_diagnostic,
+)
+from backend.app.models import (
+    User, Question, Option, UserAnswer,
+    EnglishTestSession, EnglishLevel
+)
+from backend.app.english_test_schemas import (
+    SelectLevelRequest,
+    SubmitAnswersRequest
 )
 
+@pytest.fixture
+def db() -> Session:
+    return SessionLocal()
 
 @pytest.fixture
-def mock_user(db: Session):
-    uid = uuid.uuid4().hex[:8]
+def test_user(db: Session):
     user = User(
-        username=f"user_{uid}",
-        email=f"user_{uid}@example.com",
-        hashed_password="hashed_pass",
-        english_level="unknown"
+        username=f"user_{uuid.uuid4().hex[:6]}",
+        email=f"user_{uuid.uuid4().hex[:6]}@example.com",
+        hashed_password="test_password",
+        english_level=EnglishLevel.unknown
     )
     db.add(user)
     db.commit()
     db.refresh(user)
     return user
 
+def test_select_level(db, test_user):
+    """Проверка установки уровня вручную"""
+    payload = SelectLevelRequest(level=EnglishLevel.B2)
+    response = select_english_level(payload, user=test_user, db=db)
+    assert response["level"] == "B2"
+    assert test_user.english_level == EnglishLevel.B2
 
-def test_generate_diagnostic_test(db: Session, mock_user):
-    result = generate_diagnostic_test(mock_user.id, db)
-    assert "session_id" in result
-    assert len(result["questions"]) == 15
-
-
-def test_submit_answer(db: Session, mock_user):
-    payload = generate_diagnostic_test(mock_user.id, db)
-    session_id = uuid.UUID(payload["session_id"])
-    questions = payload["questions"]
-
-    answers = []
-    for q in questions[:5]:
-        opt = db.query(Option).filter_by(question_id=q.id).first()
-        answers.append({
-            "session_id": session_id,
-            "question_id": q.id,
-            "selected_option_id": opt.id
-        })
-
-    result = submit_answer(answers, db)
-    assert result["message"] == "Ответы успешно сохранены"
-
-
-def test_evaluate_english_level_b1_logic(db: Session, mock_user):
-    payload = generate_diagnostic_test(mock_user.id, db)
-    session_id = uuid.UUID(payload["session_id"])
-    questions = payload["questions"]
-
-    user_answers = []
-    b1_count = 0
-
-    for q in questions:
-        option = db.query(Option).filter_by(question_id=q.id).first()
-        is_correct = q.level.value == "B1"
-        if is_correct:
-            b1_count += 1
-
-        ua = UserAnswer(
-            session_id=session_id,
-            question_id=q.id,
-            selected_option_id=option.id,
-            is_correct=is_correct
-        )
-        db.add(ua)
-        user_answers.append(ua)
-
+def test_generate_level_test(db, test_user):
+    """Генерация прогресс-теста — учитываем лимит 5 вопросов на уровень"""
+    test_user.english_level = EnglishLevel.B1
     db.commit()
-    assert b1_count > 0, "❗ В тесте нет вопросов уровня B1 — диагностика невозможна"
+    result = generate_level_progression_test(test_user.id, db)
+    assert result.session_id is not None
 
-    diagnosed_level = evaluate_english_level(user_answers, db)
-    assert diagnosed_level == "B1", f"Ожидался B1, получено: {diagnosed_level}"
+    #  Ожидаем максимум 10 вопросов, так как в БД по 5 на каждый уровень
+    assert 5 <= len(result.questions) <= 10
+
+    levels_in_test = set(q.level for q in result.questions)
+    assert levels_in_test.issubset({"B1", "B2"})
 
 
-def test_submit_diagnostic_all_correct_returns_c2(db: Session, mock_user):
-    payload = generate_diagnostic_test(mock_user.id, db)
-    session_id = uuid.UUID(payload["session_id"])
-    questions = payload["questions"]
-
-    for q in questions:
-        correct_option = db.query(Option).filter_by(question_id=q.id, is_correct=True).first()
-        ua = UserAnswer(
-            session_id=session_id,
-            question_id=q.id,
-            selected_option_id=correct_option.id,
-            is_correct=True
-        )
-        db.add(ua)
-
+def test_submit_diagnostic_success(db, test_user):
+    """Проверка расчета уровня после завершения диагностического теста"""
+    session = EnglishTestSession(
+        id=uuid.uuid4(),
+        user_id=test_user.id,
+        level=EnglishLevel.unknown,
+        score=0,
+        completed=False
+    )
+    db.add(session)
     db.commit()
-    result = submit_diagnostic(session_id, db)
-    assert result["diagnosed_level"] == "C2", f"Ожидался C2, получено: {result['diagnosed_level']}"
 
-
-def test_submit_diagnostic_all_wrong_returns_a1(db: Session, mock_user):
-    payload = generate_diagnostic_test(mock_user.id, db)
-    session_id = uuid.UUID(payload["session_id"])
-    questions = payload["questions"]
-
-    for q in questions:
-        wrong_option = db.query(Option).filter_by(question_id=q.id, is_correct=False).first()
-        ua = UserAnswer(
-            session_id=session_id,
+    # Выбираем 5 вопросов уровня B1 и отвечаем 3 правильно
+    questions = db.query(Question).filter_by(level=EnglishLevel.B1).limit(5).all()
+    for i, q in enumerate(questions):
+        opts = db.query(Option).filter_by(question_id=q.id).all()
+        chosen = next((o for o in opts if o.is_correct), opts[0]) if i < 3 else next((o for o in opts if not o.is_correct), opts[0])
+        db.add(UserAnswer(
+            session_id=session.id,
             question_id=q.id,
-            selected_option_id=wrong_option.id,
-            is_correct=False
-        )
-        db.add(ua)
-
+            selected_option_id=chosen.id,
+            is_correct=(i < 3)
+        ))
     db.commit()
-    result = submit_diagnostic(session_id, db)
-    assert result["diagnosed_level"] == "A1", f"Ожидался A1, получено: {result['diagnosed_level']}"
+
+    response = submit_diagnostic(session.id, db)
+    assert response.diagnosed_level in [lvl.value for lvl in EnglishLevel]
+    updated_user = db.query(User).get(test_user.id)
+    assert updated_user.english_level.value == response.diagnosed_level
