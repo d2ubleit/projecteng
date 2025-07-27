@@ -1,9 +1,11 @@
 from sqlalchemy.orm import Session
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.orm import Session
 from typing import Dict, Optional
 from uuid import UUID
 from fastapi.exceptions import HTTPException
+from PIL import Image
+import io
 
 from backend.database.database import get_db
 from backend.app.auth import get_current_user
@@ -17,7 +19,11 @@ from backend.app.english_test_schemas import (
 from backend.app.auth_schemas import UpdateEmailRequest, UserProfileResponse
 
 
+
 router = APIRouter()
+
+ALLOWED_TYPES = ["image/png", "image/jpeg", "image/jpg"]
+MAX_DIMENSION = 400
 
 
 
@@ -28,8 +34,10 @@ def get_profile_info(user: User = Depends(get_current_user)) -> UserProfileRespo
         "id": str(user.id),
         "username": user.username,
         "email": user.email,
-        "english_level": user.english_level.value
+        "english_level": user.english_level.value,
+        "avatar_url": user.avatar_url
     }
+
 
 
 
@@ -107,3 +115,46 @@ def update_email(
     
     action = "обновлён" if previous_email else "добавлен"
     return {"message": f"Email успешно {action}", "email": user.email}
+
+
+
+@router.post("/upload-avatar")
+async def upload_avatar(
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    
+    #проверка типа 
+    if file.content_type not in ALLOWED_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail="Допустимы только PNG и JPEG"
+        )
+    
+    contents = await file.read()
+    
+    #проверка размеров
+    try:
+        image = Image.open(io.BytesIO(contents))
+        if image.width > MAX_DIMENSION or image.height > MAX_DIMENSION:
+            raise HTTPException(
+                status_code=400,
+                detail="Изображение не должно превышать 400x400 пикселей"
+            )
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail="Файл не является корректным изображением"
+        )
+    
+    filename = f"{user.id}_{file.filename}"
+    filepath = f"media/avatars/{filename}"
+
+    with open(filepath, "wb") as f:
+        f.write(contents)
+
+    user.avatar_url = f"/media/avatars/{filename}"
+    db.commit()
+
+    return {"avatar_url": user.avatar_url}

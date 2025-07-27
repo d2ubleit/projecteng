@@ -25,6 +25,7 @@ class User(Base):    #хочу добавить аватарки еще и email
     email = Column(String, unique=False, nullable=True, index=True)     
     hashed_password = Column(String, nullable=False)
     english_level = Column(Enum(EnglishLevel),default=EnglishLevel.unknown)
+    avatar_url = Column(String,nullable=False, default="/media/avatars/default_user.png")
 
 
 class QuestionCategory(enum.Enum):

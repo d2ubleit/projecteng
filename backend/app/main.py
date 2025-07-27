@@ -3,8 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.app.auth import router as auth_router
 from backend.app.english_test import router as engtest_router
 from backend.app.profile import router as profile_router
+from fastapi.staticfiles import StaticFiles
+import os 
 
+os.makedirs("media/avatars", exist_ok=True)
 app = FastAPI()
+
+app.mount("/media", StaticFiles(directory="media"), name="media")
 
 
 app.include_router(auth_router, prefix="/auth")
