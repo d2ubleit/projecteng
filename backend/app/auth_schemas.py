@@ -27,6 +27,7 @@ class UserResponse(BaseModel):
     id: str
     username: Optional[str] = None
     email: Optional[str] = None 
+    avatar_url: Optional[str] 
 
     model_config = {
         "from_attributes": True
