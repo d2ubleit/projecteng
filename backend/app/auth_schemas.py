@@ -55,9 +55,11 @@ class UserSchema(BaseModel): #для получения инфы о пользо
 
 class UserProfileResponse(BaseModel):
     id: str
-    username: Optional[str]
+    username: str
     email: Optional[str]
     english_level: EnglishLevelEnum
+    avatar_url: str
+
 
 
 class UpdateEmailRequest(BaseModel):
