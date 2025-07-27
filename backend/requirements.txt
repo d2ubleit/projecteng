@@ -32,3 +32,4 @@ starlette
 typing_extensions
 uvicorn
 httpx
+pillow

@@ -74,7 +74,8 @@ def create_user(db:Session, user:UserCreate) -> User:  #создаёт ново�
     db_user = User(
     username=user.username,
     email=user.email or None,  # email необязательный
-    hashed_password=hashed_password
+    hashed_password=hashed_password,
+    avatar_url="/media/avatars/default_user.png"
     )
     db.add(db_user)
     db.commit()
@@ -135,7 +136,8 @@ def register_user(user:UserCreate,db: Session = Depends(get_db)):
     return UserResponse(
         id = str(created_user.id),
         username=created_user.username,
-        email=created_user.email
+        email=created_user.email,
+        avatar_url=created_user.avatar_url
     )
 
 @router.post("/token", response_model=Token) #логин пользователя (username/email + password) 
