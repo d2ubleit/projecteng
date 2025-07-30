@@ -16,14 +16,15 @@ from backend.app.english_test_schemas import (
     TestSessionHistory,
     EnglishLevelEnum
 )
-from backend.app.auth_schemas import UpdateEmailRequest, UserProfileResponse
-
-
+from backend.app.auth_schemas import UpdateEmailRequest, UserProfileResponse, VerifyEmailRequest
+from backend.utils.email_verification import send_verification_code,generate_verification_code
+from backend.utils.email import send_email
 
 router = APIRouter()
 
 ALLOWED_TYPES = ["image/png", "image/jpeg", "image/jpg"]
 MAX_DIMENSION = 400
+
 
 
 
@@ -95,26 +96,43 @@ def get_profile_test_history(user: User = Depends(get_current_user), db: Session
     return {"history": history}
 
 
-@router.post("/update-email") 
+@router.post("/update-email")
 def update_email(
     payload: UpdateEmailRequest,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """
-    пользователь добвляет email  (опционально) 
-    Доделать логику с подтверждением!
-    """
     existing = db.query(User).filter_by(email=payload.email).first()
     if existing and existing.id != user.id:
         raise HTTPException(status_code=400, detail="Email уже используется другим пользователем")
 
-    previous_email = user.email
     user.email = payload.email
+    user.email_verified = False
+    user.email_verification_code = generate_verification_code()
     db.commit()
-    
-    action = "обновлён" if previous_email else "добавлен"
-    return {"message": f"Email успешно {action}", "email": user.email}
+
+    send_verification_code(email=payload.email, code=user.email_verification_code)
+
+    return {"message": "Код подтверждения отправлен", "email": user.email}
+
+
+@router.post("/verify-email")
+def verify_email(
+    payload: VerifyEmailRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if user.email_verified:
+        return {"message": "Email уже подтверждён"}
+
+    if payload.code != user.email_verification_code:
+        raise HTTPException(status_code=400, detail="Неверный код подтверждения")
+
+    user.email_verified = True
+    user.email_verification_code = None
+    db.commit()
+
+    return {"message": "Email успешно подтверждён"}
 
 
 

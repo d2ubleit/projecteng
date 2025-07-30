@@ -66,6 +66,10 @@ class UserProfileResponse(BaseModel):
 class UpdateEmailRequest(BaseModel):
     email: EmailStr
 
+class VerifyEmailRequest(BaseModel):
+    code: str
+
+
 class TokenVerificationResponse(BaseModel):
     user_id: str
 

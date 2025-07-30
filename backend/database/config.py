@@ -10,3 +10,10 @@ DB_HOST = os.getenv("DB_HOST")
 DB_PORT = os.getenv("DB_PORT")
 SECRET_KEY = os.getenv("SECRET_KEY")
 REDIS_URL = os.getenv("REDIS_URL")
+SMTP_SERVER = os.getenv("SMTP_SERVER")    
+SMTP_PORT =  os.getenv("SMTP_PORT")
+SMTP_USER = os.getenv("SMTP_USER")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+
+
+
