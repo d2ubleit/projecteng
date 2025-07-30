@@ -24,7 +24,7 @@ jobs:
       uses: peter-evans/create-pull-request@v5
       with:
         token: $
-{{ secrets.GUTHUB_TOKEN }}
+{{ secrets.GITHUB_TOKEN }}
         commit-message: "Auto-commit"
         title: "Автоматический пулл-реквест в мейн ветку"
         body: "Пулл реквест был автоматически создан для изменений запушенных в мейн"
