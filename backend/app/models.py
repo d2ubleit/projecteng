@@ -22,10 +22,12 @@ class User(Base):    #хочу добавить аватарки еще и email
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     username = Column(String, unique=True, nullable=False, index=True)
-    email = Column(String, unique=False, nullable=True, index=True)     
+    email = Column(String, unique=True, nullable=True, index=True)     
     hashed_password = Column(String, nullable=False)
     english_level = Column(Enum(EnglishLevel),default=EnglishLevel.unknown)
     avatar_url = Column(String,nullable=False, default="/media/avatars/default_user.png")
+    email_verified = Column(Boolean, default=False)
+    email_verification_code = Column(String, nullable=True)
 
 
 class QuestionCategory(enum.Enum):

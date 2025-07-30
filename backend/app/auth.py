@@ -12,19 +12,23 @@ from backend.database.config import SECRET_KEY
 from datetime import datetime, timedelta
 from .auth_schemas import LogoutResponse, TokenVerificationResponse, UserCreate, UserResponse, Token, UserLogin
 from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordRequestForm
+
 
 #logger
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-redis_client = redis.Redis.from_url("redis://redis:6379/0")
+redis_client = redis.Redis.from_url("redis://localhost:6379/0")
+
 
 #jwt token settings
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 ALGORITHM = "HS256"  #шифрование 
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")  
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
+ 
 
 router = APIRouter()
 
@@ -141,13 +145,13 @@ def register_user(user:UserCreate,db: Session = Depends(get_db)):
     )
 
 @router.post("/token", response_model=Token) #логин пользователя (username/email + password) 
-def login_for_access(form_data: UserLogin, db: Session = Depends(get_db)):
+def login_for_access(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
-            status_code = status.HTTP_401_UNAUTHORIZED,
-            detail = "Неверные username/password",
-            headers= {"WWW-Authenticate": "Bearer" if form_data.username else "Basic"}
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Неверные username/password",
+            headers={"WWW-Authenticate": "Bearer"}
         )
     access_token = create_access_token(data={"sub": str(user.id)})
     return {
