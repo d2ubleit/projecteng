@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from fastapi.exceptions import HTTPException
 from sqlalchemy.orm import Session
-from .models import User
+from .models import DragItem, DropTarget, QuestionType, User
 from backend.database.database import get_db
 from .auth import get_current_user
 from backend.app.models import Question,EnglishTestSession,UserAnswer,Option,User,EnglishLevel
@@ -9,7 +9,7 @@ from sqlalchemy.sql import func
 from uuid import UUID, uuid4
 from collections import defaultdict
 
-from .english_test_schemas import GenerateTestResponse, QuestionResponse,SubmitAnswersRequest,SelectLevelRequest, SubmitAnswersResponse,SubmitDiagnosticResponse,SelectLevelResponse
+from .english_test_schemas import AnswerPayload, GenerateTestResponse, QuestionResponse,SubmitAnswersRequest,SelectLevelRequest, SubmitAnswersResponse,SubmitDiagnosticResponse,SelectLevelResponse
 
 router = APIRouter()
 
@@ -52,9 +52,17 @@ def generate_diagnostic_test(user_id: UUID, db: Session) -> GenerateTestResponse
 
     questions_serialized = []
     for q in questions:
-        options = db.query(Option).filter_by(question_id=q.id).all()
-        setattr(q, "options", options)
-        questions_serialized.append(QuestionResponse.from_orm(q))
+        if q.type == QuestionType.multiple_choice:
+            q.options = db.query(Option).filter_by(question_id=q.id).all()
+
+        elif q.type == QuestionType.drag_and_drop:
+            q.drag_items = db.query(DragItem).filter_by(question_id=q.id).all()
+            q.drop_targets = db.query(DropTarget).filter_by(question_id=q.id).all()
+
+        # open_text — ничего не подгружаем
+
+        questions_serialized.append(QuestionResponse.model_validate(q))
+
 
     return GenerateTestResponse(
         session_id=str(session.id),
@@ -62,7 +70,7 @@ def generate_diagnostic_test(user_id: UUID, db: Session) -> GenerateTestResponse
     )
 
 #Функциия сохранения ответов пользователя на вопросы теста
-def submit_answer(answers_data: list[dict], db: Session) -> SubmitAnswersResponse:
+def submit_answer(answers_data: list[AnswerPayload], db: Session) -> SubmitAnswersResponse:
     """
     answers_data = [
         {
@@ -74,20 +82,56 @@ def submit_answer(answers_data: list[dict], db: Session) -> SubmitAnswersRespons
     """
 
     for entry in answers_data:
-        selected_option = db.query(Option).get(entry["selected_option_id"])
-        is_correct = selected_option.is_correct if selected_option else False
+        question = db.query(Question).get(entry.question_id)
+        if not question:
+            continue  # или raise HTTPException, если нужно
 
-        user_answer = UserAnswer(
-            session_id = entry["session_id"],
-            question_id = entry["question_id"],
-            selected_option_id = entry["selected_option_id"],
-            is_correct = is_correct,
-        )
+        is_correct = False
+
+        if question.type == QuestionType.multiple_choice:
+            selected_option = db.query(Option).get(entry.selected_option_id)
+            is_correct = selected_option.is_correct if selected_option else False
+
+            user_answer = UserAnswer(
+                session_id=entry.session_id,
+                question_id=entry.question_id,
+                selected_option_id=entry.selected_option_id,
+                is_correct=is_correct
+            )
+
+        elif question.type == QuestionType.open_text:
+            correct = question.correct_answer.strip().lower()
+            submitted = (entry.answer_text or "").strip().lower()
+            is_correct = correct == submitted
+
+            user_answer = UserAnswer(
+                session_id=entry.session_id,
+                question_id=entry.question_id,
+                answer_text=entry.answer_text,
+                is_correct=is_correct
+            )
+
+        elif question.type == QuestionType.drag_and_drop:
+            submitted_pairs = entry.match_pairs or {}
+            correct_items = db.query(DragItem).filter_by(question_id=question.id).all()
+            correct_map = {item.id.hex: item.target_key for item in correct_items}
+
+            is_correct = all(
+                correct_map.get(k) == v for k, v in submitted_pairs.items()
+            )
+
+            user_answer = UserAnswer(
+                session_id=entry.session_id,
+                question_id=entry.question_id,
+                match_pairs=submitted_pairs,
+                is_correct=is_correct
+            )
 
         db.add(user_answer)
 
     db.commit()
     return SubmitAnswersResponse(message="Ответы успешно сохранены")
+
 
 
 
@@ -206,9 +250,17 @@ def generate_level_progression_test(user_id: UUID, db: Session) -> GenerateTestR
 
     questions_serialized = []
     for q in questions:
-        options = db.query(Option).filter_by(question_id=q.id).all()
-        setattr(q, "options", options)
+        if q.type == QuestionType.multiple_choice:
+            q.options = db.query(Option).filter_by(question_id=q.id).all()
+
+        elif q.type == QuestionType.drag_and_drop:
+            q.drag_items = db.query(DragItem).filter_by(question_id=q.id).all()
+            q.drop_targets = db.query(DropTarget).filter_by(question_id=q.id).all()
+
+        # open_text — ничего не подгружаем
+
         questions_serialized.append(QuestionResponse.model_validate(q))
+
 
     return GenerateTestResponse(
         session_id=str(session.id),

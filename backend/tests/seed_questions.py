@@ -5,231 +5,306 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 import uuid
 from sqlalchemy.orm import Session
 from backend.database.database import SessionLocal
-from backend.app.models import Question, Option, EnglishLevel, QuestionType, QuestionCategory
+from backend.app.models import DragItem, DropTarget, Question, Option, EnglishLevel, QuestionType, QuestionCategory
 
 QUESTIONS = [
-    # A1 — 5 вопросов
+    # A1 — 6 вопросов
     {
-        "prompt": "Translate the word 'book'.",
+        "prompt": "Translate the word 'apple'.",
         "level": EnglishLevel.A1,
         "category": QuestionCategory.vocabulary,
         "type": QuestionType.multiple_choice,
-        "options": [("Book", True), ("Library", False), ("Paper", False)]
+        "options": [("Apple", True), ("Banana", False), ("Orange", False)]
     },
     {
-        "prompt": "Complete: 'He ___ a car.'",
-        "level": EnglishLevel.A1,
-        "category": QuestionCategory.grammar,
-        "type": QuestionType.multiple_choice,
-        "options": [("has", True), ("have", False), ("had", False)]
-    },
-    {
-        "prompt": "Choose: 'I ___ happy.'",
+        "prompt": "Complete: 'I ___ a student.'",
         "level": EnglishLevel.A1,
         "category": QuestionCategory.grammar,
         "type": QuestionType.multiple_choice,
         "options": [("am", True), ("is", False), ("are", False)]
     },
     {
-        "prompt": "This is a ___.",
-        "level": EnglishLevel.A1,
-        "category": QuestionCategory.vocabulary,
-        "type": QuestionType.multiple_choice,
-        "options": [("pen", True), ("walk", False), ("go", False)]
-    },
-    {
-        "prompt": "Complete: 'She ___ a teacher.'",
+        "prompt": "Choose the correct article: ___ cat is sleeping.",
         "level": EnglishLevel.A1,
         "category": QuestionCategory.grammar,
         "type": QuestionType.multiple_choice,
-        "options": [("is", True), ("are", False), ("am", False)]
+        "options": [("The", True), ("A", False), ("An", False)]
+    },
+    {
+        "prompt": "Which one is a color?",
+        "level": EnglishLevel.A1,
+        "category": QuestionCategory.vocabulary,
+        "type": QuestionType.multiple_choice,
+        "options": [("Blue", True), ("Chair", False), ("Run", False)]
+    },
+    {
+        "prompt": "What is the opposite of 'hot'?",
+        "level": EnglishLevel.A1,
+        "category": QuestionCategory.vocabulary,
+        "type": QuestionType.multiple_choice,
+        "options": [("Cold", True), ("Warm", False), ("Boil", False)]
+    },
+    {
+        "prompt": "Choose the correct verb: 'She ___ to school.'",
+        "level": EnglishLevel.A1,
+        "category": QuestionCategory.grammar,
+        "type": QuestionType.multiple_choice,
+        "options": [("goes", True), ("go", False), ("gone", False)]
     },
 
-    # A2 — 5 вопросов
+    # A2 — 6 вопросов
     {
-        "prompt": "She is interested ___ music.",
+        "prompt": "Choose the correct preposition: 'He is good ___ math.'",
         "level": EnglishLevel.A2,
-        "category": QuestionCategory.grammar,
-        "type": QuestionType.multiple_choice,
-        "options": [("in", True), ("on", False), ("at", False)]
-    },
-    {
-        "prompt": "They ___ tennis every week.",
-        "level": EnglishLevel.A2,
-        "category": QuestionCategory.grammar,
-        "type": QuestionType.multiple_choice,
-        "options": [("play", True), ("plays", False), ("playing", False)]
-    },
-    {
-        "prompt": "Synonym of 'big'?",
-        "level": EnglishLevel.A2,
-        "category": QuestionCategory.vocabulary,
-        "type": QuestionType.multiple_choice,
-        "options": [("large", True), ("tiny", False), ("weak", False)]
-    },
-    {
-        "prompt": "'She can ___ fast.'",
-        "level": EnglishLevel.A2,
-        "category": QuestionCategory.vocabulary,
-        "type": QuestionType.multiple_choice,
-        "options": [("run", True), ("slow", False), ("lazy", False)]
-    },
-    {
-        "prompt": "Past tense of 'go'?",
-        "level": EnglishLevel.A2,
-        "category": QuestionCategory.grammar,
-        "type": QuestionType.multiple_choice,
-        "options": [("went", True), ("goed", False), ("gone", False)]
-    },
-
-    # B1 — 5 вопросов
-    {
-        "prompt": "'Difficult' means...",
-        "level": EnglishLevel.B1,
-        "category": QuestionCategory.vocabulary,
-        "type": QuestionType.multiple_choice,
-        "options": [("hard", True), ("easy", False), ("light", False)]
-    },
-    {
-        "prompt": "I have been working ___ morning.",
-        "level": EnglishLevel.B1,
-        "category": QuestionCategory.grammar,
-        "type": QuestionType.multiple_choice,
-        "options": [("since", True), ("from", False), ("by", False)]
-    },
-    {
-        "prompt": "'Good ___ math'",
-        "level": EnglishLevel.B1,
         "category": QuestionCategory.grammar,
         "type": QuestionType.multiple_choice,
         "options": [("at", True), ("in", False), ("to", False)]
     },
     {
-        "prompt": "Choose the correct question: ___ you like pizza?",
-        "level": EnglishLevel.B1,
-        "category": QuestionCategory.grammar,
-        "type": QuestionType.multiple_choice,
-        "options": [("Do", True), ("Does", False), ("Did", False)]
-    },
-    {
-        "prompt": "Synonym of 'job'?",
-        "level": EnglishLevel.B1,
+        "prompt": "Which word means 'quick'?",
+        "level": EnglishLevel.A2,
         "category": QuestionCategory.vocabulary,
         "type": QuestionType.multiple_choice,
-        "options": [("work", True), ("rest", False), ("play", False)]
+        "options": [("Fast", True), ("Slow", False), ("Lazy", False)]
+    },
+    {
+        "prompt": "Choose the correct form: 'They ___ dinner now.'",
+        "level": EnglishLevel.A2,
+        "category": QuestionCategory.grammar,
+        "type": QuestionType.multiple_choice,
+        "options": [("are having", True), ("have", False), ("has", False)]
+    },
+    {
+        "prompt": "What is the past tense of 'buy'?",
+        "level": EnglishLevel.A2,
+        "category": QuestionCategory.grammar,
+        "type": QuestionType.multiple_choice,
+        "options": [("bought", True), ("buyed", False), ("buys", False)]
+    },
+    {
+        "prompt": "Choose the synonym of 'happy'.",
+        "level": EnglishLevel.A2,
+        "category": QuestionCategory.vocabulary,
+        "type": QuestionType.multiple_choice,
+        "options": [("Joyful", True), ("Sad", False), ("Angry", False)]
+    },
+    {
+        "prompt": "Complete: 'I have lived here ___ 2010.'",
+        "level": EnglishLevel.A2,
+        "category": QuestionCategory.grammar,
+        "type": QuestionType.multiple_choice,
+        "options": [("since", True), ("for", False), ("from", False)]
     },
 
-    # B2 — 5 вопросов
+    # B1 — 6 вопросов
     {
-        "prompt": "No sooner ___ he arrived.",
-        "level": EnglishLevel.B2,
+        "prompt": "Choose the correct question: ___ you ever been abroad?",
+        "level": EnglishLevel.B1,
         "category": QuestionCategory.grammar,
         "type": QuestionType.multiple_choice,
-        "options": [("had", True), ("has", False), ("have", False)]
+        "options": [("Have", True), ("Did", False), ("Do", False)]
     },
     {
-        "prompt": "Meaning of 'get over'?",
+        "prompt": "What does 'generous' mean?",
+        "level": EnglishLevel.B1,
+        "category": QuestionCategory.vocabulary,
+        "type": QuestionType.multiple_choice,
+        "options": [("Kind and giving", True), ("Mean", False), ("Lazy", False)]
+    },
+    {
+        "prompt": "Choose the correct sentence: 'I ___ my homework before dinner.'",
+        "level": EnglishLevel.B1,
+        "category": QuestionCategory.grammar,
+        "type": QuestionType.multiple_choice,
+        "options": [("finished", True), ("finish", False), ("finishing", False)]
+    },
+    {
+        "prompt": "Synonym of 'important'?",
+        "level": EnglishLevel.B1,
+        "category": QuestionCategory.vocabulary,
+        "type": QuestionType.multiple_choice,
+        "options": [("Significant", True), ("Tiny", False), ("Optional", False)]
+    },
+    {
+        "prompt": "Choose the correct form: 'She ___ working here for years.'",
+        "level": EnglishLevel.B1,
+        "category": QuestionCategory.grammar,
+        "type": QuestionType.multiple_choice,
+        "options": [("has been", True), ("is", False), ("was", False)]
+    },
+    {
+        "prompt": "What is the opposite of 'cheap'?",
+        "level": EnglishLevel.B1,
+        "category": QuestionCategory.vocabulary,
+        "type": QuestionType.multiple_choice,
+        "options": [("Expensive", True), ("Free", False), ("Small", False)]
+    },
+]
+
+QUESTIONS += [
+    # B2 — 6 вопросов
+    {
+        "prompt": "What is the synonym of 'assist'?",
         "level": EnglishLevel.B2,
         "category": QuestionCategory.vocabulary,
         "type": QuestionType.multiple_choice,
-        "options": [("recover", True), ("give up", False), ("fall apart", False)]
+        "options": [("help", True), ("ignore", False), ("delay", False)]
     },
     {
-        "prompt": "Passive: The cake ___ baked.",
+        "prompt": "Complete the sentence: 'He ___ finished the report.'",
+        "level": EnglishLevel.B2,
+        "category": QuestionCategory.grammar,
+        "type": QuestionType.open_text,
+        "correct_answer": "has"
+    },
+    {
+        "prompt": "Match the phrasal verbs to their meanings.",
+        "level": EnglishLevel.B2,
+        "category": QuestionCategory.vocabulary,
+        "type": QuestionType.drag_and_drop,
+        "drag_items": [
+            {"text": "give up", "target_key": "quit"},
+            {"text": "look after", "target_key": "care"},
+            {"text": "run into", "target_key": "meet"}
+        ],
+        "drop_targets": ["quit", "care", "meet"]
+    },
+    {
+        "prompt": "Choose the correct passive form: 'The book ___ written by her.'",
         "level": EnglishLevel.B2,
         "category": QuestionCategory.grammar,
         "type": QuestionType.multiple_choice,
         "options": [("was", True), ("is", False), ("has", False)]
     },
     {
-        "prompt": "Choose correct form: 'He ___ been there.'",
-        "level": EnglishLevel.B2,
-        "category": QuestionCategory.grammar,
-        "type": QuestionType.multiple_choice,
-        "options": [("has", True), ("have", False), ("had", False)]
-    },
-    {
-        "prompt": "Synonym of 'achieve'?",
+        "prompt": "Translate 'успех' to English.",
         "level": EnglishLevel.B2,
         "category": QuestionCategory.vocabulary,
-        "type": QuestionType.multiple_choice,
-        "options": [("accomplish", True), ("avoid", False), ("fail", False)]
+        "type": QuestionType.open_text,
+        "correct_answer": "success"
+    },
+    {
+        "prompt": "Match the countries to their continents.",
+        "level": EnglishLevel.B2,
+        "category": QuestionCategory.vocabulary,
+        "type": QuestionType.drag_and_drop,
+        "drag_items": [
+            {"text": "Brazil", "target_key": "South America"},
+            {"text": "Germany", "target_key": "Europe"},
+            {"text": "Japan", "target_key": "Asia"}
+        ],
+        "drop_targets": ["South America", "Europe", "Asia"]
     },
 
-    # C1 — 5 вопросов
+    # C1 — 6 вопросов
     {
-        "prompt": "'Were I you...' means?",
+        "prompt": "What does 'meticulous' mean?",
+        "level": EnglishLevel.C1,
+        "category": QuestionCategory.vocabulary,
+        "type": QuestionType.open_text,
+        "correct_answer": "careful"
+    },
+    {
+        "prompt": "Match the idioms to their meanings.",
+        "level": EnglishLevel.C1,
+        "category": QuestionCategory.vocabulary,
+        "type": QuestionType.drag_and_drop,
+        "drag_items": [
+            {"text": "break the ice", "target_key": "start conversation"},
+            {"text": "hit the sack", "target_key": "go to bed"},
+            {"text": "spill the beans", "target_key": "reveal secret"}
+        ],
+        "drop_targets": ["start conversation", "go to bed", "reveal secret"]
+    },
+    {
+        "prompt": "Choose the correct form: 'Had I known, I ___ have helped.'",
         "level": EnglishLevel.C1,
         "category": QuestionCategory.grammar,
         "type": QuestionType.multiple_choice,
-        "options": [("If I were you", True), ("If I was you", False), ("If I'm you", False)]
+        "options": [("would", True), ("will", False), ("can", False)]
     },
     {
-        "prompt": "'Drop the ball' means?",
+        "prompt": "Translate 'предложение' (в смысле grammar) to English.",
+        "level": EnglishLevel.C1,
+        "category": QuestionCategory.vocabulary,
+        "type": QuestionType.open_text,
+        "correct_answer": "sentence"
+    },
+    {
+        "prompt": "Match the connectors to their functions.",
+        "level": EnglishLevel.C1,
+        "category": QuestionCategory.grammar,
+        "type": QuestionType.drag_and_drop,
+        "drag_items": [
+            {"text": "however", "target_key": "contrast"},
+            {"text": "therefore", "target_key": "result"},
+            {"text": "moreover", "target_key": "addition"}
+        ],
+        "drop_targets": ["contrast", "result", "addition"]
+    },
+    {
+        "prompt": "Choose the correct word: 'He is ___ to succeed.'",
         "level": EnglishLevel.C1,
         "category": QuestionCategory.vocabulary,
         "type": QuestionType.multiple_choice,
-        "options": [("fail", True), ("run", False), ("improve", False)]
-    },
-    {
-        "prompt": "Subjunctive mood used in:",
-        "level": EnglishLevel.C1,
-        "category": QuestionCategory.grammar,
-        "type": QuestionType.multiple_choice,
-        "options": [("I wish I were rich", True), ("She is smart", False), ("I am here", False)]
-    },
-    {
-        "prompt": "Synonym of 'complex'?",
-        "level": EnglishLevel.C1,
-        "category": QuestionCategory.vocabulary,
-        "type": QuestionType.multiple_choice,
-        "options": [("complicated", True), ("simple", False), ("clear", False)]
-    },
-    {
-        "prompt": "'As though' is used to express?",
-        "level": EnglishLevel.C1,
-        "category": QuestionCategory.grammar,
-        "type": QuestionType.multiple_choice,
-        "options": [("hypothesis", True), ("certainty", False), ("request", False)]
+        "options": [("likely", True), ("maybe", False), ("possibly", False)]
     },
 
-    # C2 — 5 вопросов
+    # C2 — 6 вопросов
     {
-        "prompt": "'By the skin of your teeth' means?",
+        "prompt": "Translate 'мимолетный' to English.",
+        "level": EnglishLevel.C2,
+        "category": QuestionCategory.vocabulary,
+        "type": QuestionType.open_text,
+        "correct_answer": "ephemeral"
+    },
+    {
+        "prompt": "Match the advanced words to their definitions.",
+        "level": EnglishLevel.C2,
+        "category": QuestionCategory.vocabulary,
+        "type": QuestionType.drag_and_drop,
+        "drag_items": [
+            {"text": "ubiquitous", "target_key": "everywhere"},
+            {"text": "ambiguous", "target_key": "unclear"},
+            {"text": "benevolent", "target_key": "kind"}
+        ],
+        "drop_targets": ["everywhere", "unclear", "kind"]
+    },
+    {
+        "prompt": "Choose the correct word: 'Her argument was highly ___.'",
         "level": EnglishLevel.C2,
         "category": QuestionCategory.vocabulary,
         "type": QuestionType.multiple_choice,
-        "options": [("barely succeed", True), ("lose badly", False), ("cheat", False)]
+        "options": [("persuasive", True), ("aggressive", False), ("confusing", False)]
     },
     {
-        "prompt": "'Not only ___ he smart, but also kind.'",
+        "prompt": "Translate 'предвзятый' to English.",
         "level": EnglishLevel.C2,
-        "category": QuestionCategory.grammar,
-        "type": QuestionType.multiple_choice,
-        "options": [("is", True), ("does", False), ("was", False)]
+        "category": QuestionCategory.vocabulary,
+        "type": QuestionType.open_text,
+        "correct_answer": "biased"
     },
     {
-        "prompt": "Meaning of 'ephemeral'?",
+        "prompt": "Match the Latin phrases to their meanings.",
+        "level": EnglishLevel.C2,
+        "category": QuestionCategory.vocabulary,
+        "type": QuestionType.drag_and_drop,
+        "drag_items": [
+            {"text": "carpe diem", "target_key": "seize the day"},
+            {"text": "et cetera", "target_key": "and so on"},
+            {"text": "vice versa", "target_key": "the other way around"}
+        ],
+        "drop_targets": ["seize the day", "and so on", "the other way around"]
+    },
+    {
+        "prompt": "Choose the correct word: 'His style is ___ and elegant.'",
         "level": EnglishLevel.C2,
         "category": QuestionCategory.vocabulary,
         "type": QuestionType.multiple_choice,
-        "options": [("short-lived", True), ("eternal", False), ("boring", False)]
-    },
-        {
-        "prompt": "'Hardly ___ she left when it rained.'",
-        "level": EnglishLevel.C2,
-        "category": QuestionCategory.grammar,
-        "type": QuestionType.multiple_choice,
-        "options": [("had", True), ("has", False), ("have", False)]
-    },
-    {
-        "prompt": "'Throw in the towel' means?",
-        "level": EnglishLevel.C2,
-        "category": QuestionCategory.vocabulary,
-        "type": QuestionType.multiple_choice,
-        "options": [("give up", True), ("celebrate", False), ("try harder", False)]
+        "options": [("refined", True), ("rough", False), ("basic", False)]
     }
 ]
+
 
 
 def seed_questions():
@@ -241,18 +316,40 @@ def seed_questions():
             category=q["category"],
             type=q["type"]
         )
+
+        if q["type"] == QuestionType.open_text:
+            question.correct_answer = q["correct_answer"]
+
         db.add(question)
         db.commit()
         db.refresh(question)
 
-        for text, correct in q["options"]:
-            db.add(Option(
-                question_id=question.id,
-                text=text,
-                is_correct=correct
-            ))
+        if q["type"] == QuestionType.multiple_choice:
+            for text, correct in q["options"]:
+                db.add(Option(
+                    question_id=question.id,
+                    text=text,
+                    is_correct=correct
+                ))
+
+        elif q["type"] == QuestionType.drag_and_drop:
+            for item in q["drag_items"]:
+                db.add(DragItem(
+                    question_id=question.id,
+                    label=item["text"],
+                    target_key=item["target_key"]
+                ))
+            for target in q["drop_targets"]:
+                db.add(DropTarget(
+                    question_id=question.id,
+                    target_key=target,
+                    placeholder=target
+                ))
+
         db.commit()
-    print("✅ Вопросы и варианты загружены")
+
+    print("✅ Все вопросы загружены в базу данных")
+
 
 if __name__ == "__main__":
     seed_questions()
