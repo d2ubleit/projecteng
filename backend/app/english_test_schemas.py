@@ -21,7 +21,11 @@ class SelectLevelRequest(BaseModel):
 class AnswerPayload(BaseModel):
     session_id: UUID
     question_id: UUID
-    selected_option_id: Optional[UUID]  # для текстовых вопросов может быть None
+
+    selected_option_id: Optional[UUID] = None   # multiple_choice
+    answer_text: Optional[str] = None           # open_text
+    match_pairs: Optional[dict[str, str]] = None  # drag_and_drop
+
 
 
 class SubmitAnswersRequest(BaseModel):
@@ -33,7 +37,24 @@ class SubmitAnswersResponse(BaseModel):
 class OptionResponse(BaseModel):
     id: UUID
     text: str
-    is_correct: bool
+
+    model_config = {
+        "from_attributes": True
+    }
+
+class DragItemResponse(BaseModel):
+    id: UUID
+    label: str
+    target_key: str
+
+    model_config = {
+        "from_attributes": True
+    }
+
+class DropTargetResponse(BaseModel):
+    id: UUID
+    placeholder: str
+    target_key: str
 
     model_config = {
         "from_attributes": True
@@ -46,7 +67,12 @@ class QuestionResponse(BaseModel):
     level: str
     category: str
     type: str
-    options: list[OptionResponse]  
+
+    options: Optional[List[OptionResponse]] = []           # multiple_choice
+    drag_items: Optional[List[DragItemResponse]] = []      # drag_and_drop
+    drop_targets: Optional[List[DropTargetResponse]] = []  # drag_and_drop
+
+    #open_text на фронте
 
     model_config = {
         "from_attributes": True
@@ -83,5 +109,8 @@ class TestHistoryResponse(BaseModel):
 class SelectLevelResponse(BaseModel):
     message: str
     level: EnglishLevelEnum
+
+
+
 
 
