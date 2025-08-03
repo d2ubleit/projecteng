@@ -1,4 +1,4 @@
-from pydantic import BaseModel,EmailStr,model_validator,constr,Field
+from pydantic import BaseModel,EmailStr,model_validator,constr
 from typing import Optional,Annotated
 import re
 from uuid import UUID
@@ -40,11 +40,6 @@ class Token(BaseModel):
     user_id: str
 
 
-class UserLogin(BaseModel):
-    username: str
-    password: str
-
-
 class UserSchema(BaseModel): #для получения инфы о пользователе к примеру /me
     id:UUID
     username: Optional[str]
@@ -76,3 +71,16 @@ class TokenVerificationResponse(BaseModel):
 
 class LogoutResponse(BaseModel):
     message: str
+
+
+class EmailUpdateResponse(BaseModel):
+    message: str
+    email: str
+
+
+class EmailVerificationResponse(BaseModel):
+    message: str
+
+
+class AvatarUploadResponse(BaseModel):
+    avatar_url: str

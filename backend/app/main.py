@@ -1,4 +1,4 @@
-from fastapi import FastAPI,status,Depends,HTTPException,BackgroundTasks
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.app.auth import router as auth_router
 from backend.app.english_test import router as engtest_router
