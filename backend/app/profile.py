@@ -14,11 +14,10 @@ from backend.app.english_test_schemas import (
     TestHistoryResponse,
     TestHistoryQuestion,
     TestSessionHistory,
-    EnglishLevelEnum
+    EnglishLevelEnum,
 )
-from backend.app.auth_schemas import UpdateEmailRequest, UserProfileResponse, VerifyEmailRequest
+from backend.app.auth_schemas import UpdateEmailRequest, UserProfileResponse, VerifyEmailRequest,EmailUpdateResponse,EmailVerificationResponse,AvatarUploadResponse
 from backend.utils.email_verification import send_verification_code,generate_verification_code
-from backend.utils.email import send_email
 
 router = APIRouter()
 
@@ -96,12 +95,12 @@ def get_profile_test_history(user: User = Depends(get_current_user), db: Session
     return {"history": history}
 
 
-@router.post("/update-email")
+@router.post("/update-email", response_model=EmailUpdateResponse)
 def update_email(
     payload: UpdateEmailRequest,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
-):
+) -> EmailUpdateResponse:
     existing = db.query(User).filter_by(email=payload.email).first()
     if existing and existing.id != user.id:
         raise HTTPException(status_code=400, detail="Email уже используется другим пользователем")
@@ -113,17 +112,18 @@ def update_email(
 
     send_verification_code(email=payload.email, code=user.email_verification_code)
 
-    return {"message": "Код подтверждения отправлен", "email": user.email}
+    return EmailUpdateResponse(message="Код подтверждения отправлен", email=user.email)
 
 
-@router.post("/verify-email")
+
+@router.post("/verify-email", response_model=EmailVerificationResponse)
 def verify_email(
     payload: VerifyEmailRequest,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
-):
+) -> EmailVerificationResponse:
     if user.email_verified:
-        return {"message": "Email уже подтверждён"}
+        return EmailVerificationResponse(message="Email уже подтверждён")
 
     if payload.code != user.email_verification_code:
         raise HTTPException(status_code=400, detail="Неверный код подтверждения")
@@ -132,40 +132,30 @@ def verify_email(
     user.email_verification_code = None
     db.commit()
 
-    return {"message": "Email успешно подтверждён"}
+    return EmailVerificationResponse(message="Email успешно подтверждён")
 
 
 
-@router.post("/upload-avatar")
+
+
+@router.post("/upload-avatar", response_model=AvatarUploadResponse)
 async def upload_avatar(
     file: UploadFile = File(...),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
-):
-    
-    #проверка типа 
+) -> AvatarUploadResponse:
     if file.content_type not in ALLOWED_TYPES:
-        raise HTTPException(
-            status_code=400,
-            detail="Допустимы только PNG и JPEG"
-        )
-    
+        raise HTTPException(status_code=400, detail="Допустимы только PNG и JPEG")
+
     contents = await file.read()
-    
-    #проверка размеров
+
     try:
         image = Image.open(io.BytesIO(contents))
         if image.width > MAX_DIMENSION or image.height > MAX_DIMENSION:
-            raise HTTPException(
-                status_code=400,
-                detail="Изображение не должно превышать 400x400 пикселей"
-            )
+            raise HTTPException(status_code=400, detail="Изображение не должно превышать 400x400 пикселей")
     except Exception:
-        raise HTTPException(
-            status_code=400,
-            detail="Файл не является корректным изображением"
-        )
-    
+        raise HTTPException(status_code=400, detail="Файл не является корректным изображением")
+
     filename = f"{user.id}_{file.filename}"
     filepath = f"media/avatars/{filename}"
 
@@ -175,4 +165,4 @@ async def upload_avatar(
     user.avatar_url = f"/media/avatars/{filename}"
     db.commit()
 
-    return {"avatar_url": user.avatar_url}
+    return AvatarUploadResponse(avatar_url=user.avatar_url)

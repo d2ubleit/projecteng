@@ -2,7 +2,6 @@ from fastapi import APIRouter,Depends,HTTPException,status
 from sqlalchemy.orm import Session
 from .models import User
 from backend.database.database import get_db
-from pydantic import BaseModel, model_validator
 import redis
 import logging
 from passlib.context import CryptContext
@@ -10,7 +9,7 @@ from jose import JWTError, jwt
 from typing import Optional
 from backend.database.config import SECRET_KEY
 from datetime import datetime, timedelta
-from .auth_schemas import LogoutResponse, TokenVerificationResponse, UserCreate, UserResponse, Token, UserLogin
+from .auth_schemas import LogoutResponse, TokenVerificationResponse, UserCreate, UserResponse, Token
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.security import OAuth2PasswordRequestForm
 
