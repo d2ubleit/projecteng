@@ -1,6 +1,26 @@
-FROM python:3.10-slim
+FROM python:3.10-slim as builder
+
 WORKDIR /app
-COPY backend/requirements.txt .
-RUN pip install -r requirements.txt
-COPY backend/ .
-CMD ["python", "app.py"]
+
+COPY pyproject.toml poetry.lock* ./
+RUN pip install --upgrade pip && \
+    pip install poetry && \
+    poetry config virtualenvs.create false && \
+    poetry install --no-root --only main
+
+COPY . .
+
+FROM python:3.10-slim
+
+WORKDIR /app
+
+
+COPY --from=builder /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
+COPY --from=builder /app /app
+
+ENV PYTHONPATH=/app \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
