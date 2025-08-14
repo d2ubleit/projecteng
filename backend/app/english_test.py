@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from .models import DragItem, DropTarget, QuestionType, User
 from backend.database.database import get_db
 from .auth import get_current_user
-from backend.app.models import Question,EnglishTestSession,UserAnswer,Option,User,EnglishLevel
+from backend.app.models import Question,EnglishTestSession,UserAnswer,Option,User,EnglishLevel,LevelUpgradeRequest
 from sqlalchemy.sql import func
 from uuid import UUID, uuid4
 from collections import defaultdict
@@ -27,7 +27,7 @@ def generate_diagnostic_test(user_id: UUID, db: Session) -> GenerateTestResponse
     Функция для генерации теста, если пользователь не знает свой уровень англ
 
     """
-    session = EnglishTestSession(
+    session = EnglishTestSession( 
         id=uuid4(),
         user_id=user_id,
         level="unknown",
@@ -267,7 +267,121 @@ def generate_level_progression_test(user_id: UUID, db: Session) -> GenerateTestR
         questions=questions_serialized
     )
 
+def generate_upgrade_test(user_id: UUID,db:Session ) -> GenerateTestResponse:
+    """
+    Генерация теста для запроса на повышение уровня
+    """
 
+    user = db.query(User).get(user_id)
+    if not user or user.english_level == EnglishLevel.unknown:
+        raise HTTPException(
+            status_code=400,
+            detail="Пользователь не имеет определенного уровня английского языка"
+        )
+    
+    next_level = get_next_level(user.english_level)
+    session = EnglishTestSession(
+        id = uuid4(),
+        user_id = user_id,
+        level = next_level,
+        score = 0,
+        completed = False
+    )
+    db.add(session)
+    
+    upgrade_request = LevelUpgradeRequest(
+        user_id = user_id,
+        target_level = next_level,
+    )
+
+    db.add(upgrade_request)
+    db.commit()
+    db.refresh(session)
+
+    questions = (
+        db.query(Question)
+        .filter_by(level=next_level.value)
+        .order_by(func.random())
+        .limit(15)  
+        .all()
+    )
+
+    questions_serialized = []
+    for q in questions:
+        if q.type == QuestionType.multiple_choice:
+            q.options = db.query(Option).filter_by(question_id=q.id).all()
+        elif q.type == QuestionType.drag_and_drop:
+            q.drag_items = db.query(DragItem).filter_by(question_id=q.id).all()
+            q.drop_targets = db.query(DropTarget).filter_by(question_id=q.id).all()
+
+        questions_serialized.append(QuestionResponse.model_validate(q))
+
+    return GenerateTestResponse(
+        session_id=str(session.id),
+        target_levels=[next_level.value],
+        questions=questions_serialized
+    )
+
+def evaluate_upgrade_test(session_id: UUID, db: Session) -> SubmitDiagnosticResponse:
+    """
+    Оценка результатов теста на повышение уровня
+
+    """
+    answers = db.query(UserAnswer).filter_by(session_id=session_id).all()
+    if not answers:
+        raise HTTPException(status_code=400, detail="Нет ответов для данной сессии")
+
+    correct_count = sum(1 for a in answers if a.is_correct)
+    total = len(answers)
+    score = int((correct_count / total) * 100)
+
+    session = db.query(EnglishTestSession).get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Сессия не найдена")
+
+    session.score = correct_count
+    session.completed = True
+
+    user = db.query(User).get(session.user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+    current_level = user.english_level
+    next_level = get_next_level(current_level)
+
+    upgrade_request = db.query(LevelUpgradeRequest).filter_by(
+        user_id=user.id,
+        target_level=next_level
+    ).first()
+
+    if score >= 75:
+        user.english_level = next_level
+        if upgrade_request:
+            upgrade_request.passed = True
+    else:
+        if upgrade_request:
+            upgrade_request.passed = False
+
+    db.commit()
+
+    return SubmitDiagnosticResponse(diagnosed_level=user.english_level)
+
+
+
+
+
+@router.post("/generate-upgrade-test", response_model=GenerateTestResponse)
+def upgrade_test(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """ 
+    Генерация теста для запроса на повышение уровня
+    """
+    return generate_upgrade_test(user.id, db)
+
+@router.post("/submit-upgrade-test/{session_id}", response_model=SubmitDiagnosticResponse)
+def submit_upgrade_test(session_id: UUID, db: Session = Depends(get_db)):
+    """
+    Завершение теста на повышение уровня и оценка результатов"""
+    return evaluate_upgrade_test(session_id, db)
 
 
 @router.post("/generate-diagnostic-test",response_model=GenerateTestResponse)
